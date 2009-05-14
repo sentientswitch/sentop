@@ -8,5 +8,8 @@
 #                                                                        #
 ##########################################################################
 
+Usage:
+        any key         update statistics
+        q               quit
 
 I'm using this project to learn ncurses.

@@ -13,6 +13,12 @@ char STATS_PATH[100] = "/sys/devices/pci0000:00/0000:00:1c.5/0000:04:00.0/net/et
 static WINDOW* ROOT_WIN; //Pointer to root window.
 
 //Structs.
+
+//--------------------------------------------------------------//
+//  snap_all                                                    //
+//                                                              //
+//  Structure to hold a snapshot of all statistics.             //
+//--------------------------------------------------------------//
 struct snap_all {
   unsigned int rx_bytes,           tx_bytes;
   unsigned int rx_packets,         tx_packets;
@@ -77,6 +83,11 @@ unsigned int GetStat(char statsFile[]) {
   return retVal;
 }
 
+//--------------------------------------------------------------//
+//  GetSnapAll                                                  //
+//                                                              //
+//  Fills a snap_all structure with data.                       //
+//--------------------------------------------------------------//
 struct snap_all GetSnapAll() {
   struct snap_all retSnap;
 

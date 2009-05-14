@@ -120,36 +120,49 @@ struct snap_all GetSnapAll() {
   return retSnap;
 }
 
+void PrintSnapAll(WINDOW* targetWin, struct snap_all* snapToPrnt) {
+  char sBuffer[20];
+  char sBuffer2[20];
+  int x1 = 3;
+  int x2 = 31;
+
+  sprintf(sBuffer, "%u", snapToPrnt->rx_bytes);                                         sprintf(sBuffer2, "%u", snapToPrnt->tx_bytes);
+  mvwprintw(targetWin, 2, x1, "rx_bytes:       ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 2, x2, "tx_bytes:       ");        wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_packets);                                       sprintf(sBuffer2, "%u", snapToPrnt->tx_packets);
+  mvwprintw(targetWin, 3, x1, "rx_packets:     ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 3, x2, "tx_packets:     ");        wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_errors);                                        sprintf(sBuffer2, "%u", snapToPrnt->tx_errors);
+  mvwprintw(targetWin, 4, x1, "rx_errors:      ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 4, x2, "tx_errors:      ");        wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_dropped);                                       sprintf(sBuffer2, "%u", snapToPrnt->tx_dropped);
+  mvwprintw(targetWin, 5, x1, "rx_dropped:     ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 5, x2, "tx_dropped:     ");        wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_fifo_errors);                                   sprintf(sBuffer2, "%u", snapToPrnt->tx_fifo_errors);
+  mvwprintw(targetWin, 6, x1, "rx_fifo_errors: ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 6, x2, "tx_fifo_errors: ");        wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_compressed);                                    sprintf(sBuffer2, "%u", snapToPrnt->tx_compressed);
+  mvwprintw(targetWin, 7, x1, "rx_compressed:  ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 7, x2, "tx_compressed:  ");        wprintw(targetWin, sBuffer2);
+}
 
 //--------------------------------------------------------------//
 //  main                                                        //
 //--------------------------------------------------------------//
 int main (int argc, char* argv[]) {
-  bool contLoop = true; //True until we want to exit main loop.
-  char inpCmd; //Store user input.
-  unsigned int txBytes;
-  char sTxBytes[20]; //String to hold txBytes.
-
-  txBytes = GetStat("tx_bytes");
-  sprintf(sTxBytes, "%u", txBytes);
+  bool contLoop = true;         //True until we want to exit main loop.
+  char inpCmd;                  //Store user input.
+  struct snap_all snapAll;      //Main snapshot structure.
 
   //Init ncurses.
   NCInit();
 
-  //Do stuff.
+  //Draw windows etc.
   box(ROOT_WIN, ACS_VLINE, ACS_HLINE);
 
-  mvprintw(1, 1, "tx_bytes: ");
-  printw(sTxBytes);
-
-  //Print it on the screen.
-  refresh();
-
-  //Get user input.
+  //Main loop for user interaction.
   while (contLoop) {
+    refresh();
     inpCmd = getch();
     if (inpCmd == 'q') {
       contLoop = false;
+    } else {
+      snapAll = GetSnapAll();
+      PrintSnapAll(ROOT_WIN, &snapAll);
     }
   }
 

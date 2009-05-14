@@ -24,6 +24,8 @@ unsigned int GetStat(char* statsFile);
 //--------------------------------------------------------------//
 void NCInit() {
   ROOT_WIN = initscr();
+  cbreak();
+  noecho();
   keypad(stdscr, TRUE);
 }
 
@@ -63,6 +65,8 @@ unsigned int GetStat(char statsFile[]) {
 //  main                                                        //
 //--------------------------------------------------------------//
 int main (int argc, char* argv[]) {
+  bool contLoop = true; //True until we want to exit main loop.
+  char inpCmd; //Store user input.
   unsigned int txBytes;
   char sTxBytes[20]; //String to hold txBytes.
 
@@ -80,7 +84,12 @@ int main (int argc, char* argv[]) {
   refresh();
 
   //Get user input.
-  getch();
+  while (contLoop) {
+    inpCmd = getch();
+    if (inpCmd == 'q') {
+      contLoop = false;
+    }
+  }
 
   //End ncurses.
   NCExit();

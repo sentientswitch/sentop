@@ -1,36 +1,48 @@
-//                                              //
-//      sentop.c                                //
-//                                              //
-//      contact: sentientswitch@gmail.com       //
-//                                              //
+//--------------------------------------------------------------//
+//      sentop.c                                                //
+//                                                              //
+//      contact: sentientswitch@gmail.com                       //
+//--------------------------------------------------------------//
 
 
 #include <ncurses.h>
 #include <stdio.h>
 
 //Global Vars.
-char STATS_PATH[100] = "/sys/devices/pci0000:00/0000:00:1c.5/0000:04:00.0/net/eth0/statistics/";
+char STATS_PATH[100] = "/sys/devices/pci0000:00/0000:00:1c.5/0000:04:00.0/net/eth0/statistics/"; //Interface statistics path.
+static WINDOW* ROOT_WIN; //Pointer to root window.
 
 //Functions.
+void NCInit();
+void NCExit();
 unsigned int GetStat(char* statsFile);
 
-
+//--------------------------------------------------------------//
+//  NCInit                                                      //
+//                                                              //
+//  Functions for starting ncurses environment.                 //
+//--------------------------------------------------------------//
 void NCInit() {
-  initscr();
+  ROOT_WIN = initscr();
   keypad(stdscr, TRUE);
 }
 
+//--------------------------------------------------------------//
+//  NCExit                                                      //
+//                                                              //
+//  Functions for ending ncurses.                               //
+//--------------------------------------------------------------//
 void NCExit() {
   endwin();
 }
 
-//
-//  GetStat
-//
-//  Takes name of statistics file.
-//
-//  Returns number from statistics file as unsigned int.
-//
+//--------------------------------------------------------------//
+//  GetStat                                                     //
+//                                                              //
+//  Takes name of statistics file.                              //
+//                                                              //
+//  Returns number from statistics file as unsigned int.        //
+//--------------------------------------------------------------//
 unsigned int GetStat(char statsFile[]) {
   unsigned int retVal;
   char filePath[200];
@@ -47,6 +59,9 @@ unsigned int GetStat(char statsFile[]) {
   return retVal;
 }
 
+//--------------------------------------------------------------//
+//  main                                                        //
+//--------------------------------------------------------------//
 int main (int argc, char* argv[]) {
   unsigned int txBytes;
   char sTxBytes[20]; //String to hold txBytes.
@@ -58,6 +73,7 @@ int main (int argc, char* argv[]) {
   NCInit();
 
   //Do stuff.
+  box(ROOT_WIN, ACS_VLINE, ACS_HLINE);
   printw(sTxBytes);
 
   //Print it on the screen.

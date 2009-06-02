@@ -7,6 +7,8 @@
 
 #include <ncurses.h>
 #include <stdio.h>
+#include <time.h>
+#include <unistd.h>
 
 //Global Vars.
 char STATS_PATH[100] = "/sys/class/net/eth0/statistics/"; //Interface statistics path.
@@ -31,6 +33,8 @@ struct snap_all {
   unsigned int tx_carrier_errors,  tx_heartbeat_errors,  tx_window_errors,  tx_aborted_errors;
 
   unsigned int collisions,         multicast;
+
+  time_t time;
 };
 
 //--------------------------------------------------------------//
@@ -40,7 +44,21 @@ struct snap_all {
 //--------------------------------------------------------------//
 struct snap_min {
   unsigned int rx_bytes,           tx_bytes;
+  time_t time;
 };
+
+/*
+//--------------------------------------------------------------//
+//  graph                                                       //
+//                                                              //
+//  Structure to store graph data and options.                  //
+//--------------------------------------------------------------//
+struct st_graph {
+  unsigned char samples = 30; //Number of samples to store.
+  char graphChar = '#'; //Character to draw graph with.
+  unsigned int maxVal = 0; //Keeps track of maximum value observed so far.
+  unsigned int vals[samples]; //Array of data points.
+};*/
 
 //Functions.
 
@@ -60,9 +78,10 @@ void NCInit() {
   ROOT_WIN = initscr();
 
   //Various ncurses options.
-  cbreak();
+  cbreak(); //Get individual key presses.
   noecho();
   keypad(stdscr, TRUE);
+  curs_set(0); //Make cursor invisible.
 
   //Colours.
   start_color();
@@ -136,6 +155,9 @@ struct snap_all GetSnapAll() {
   retSnap.collisions           = GetStat("collisions");
   retSnap.multicast            = GetStat("multicast");
 
+  //Get time.
+  retSnap.time                 = time(NULL);
+
   return retSnap;
 }
 
@@ -150,7 +172,40 @@ struct snap_min GetSnapMin() {
   //                   rx                                                    tx
   retSnap.rx_bytes             = GetStat("rx_bytes");           retSnap.tx_bytes        = GetStat("tx_bytes");
 
+  //Get time.
+  retSnap.time                 = time(NULL);
+
   return retSnap;
+}
+
+//--------------------------------------------------------------//
+//  FillSnapAll                                                 //
+//                                                              //
+//  Copies a snap_all struct from one to another.               //
+//--------------------------------------------------------------//
+void FillSnapAll(struct snap_all* srcSnap, struct snap_all* destSnap) {
+  destSnap->rx_bytes       = srcSnap->rx_bytes;         destSnap->tx_bytes       = srcSnap->tx_bytes;
+  destSnap->rx_packets     = srcSnap->rx_packets;       destSnap->tx_packets     = srcSnap->tx_packets;
+  destSnap->rx_errors      = srcSnap->rx_errors;        destSnap->tx_errors      = srcSnap->tx_errors;
+  destSnap->rx_dropped     = srcSnap->rx_dropped;       destSnap->tx_dropped     = srcSnap->tx_dropped;
+  destSnap->rx_fifo_errors = srcSnap->rx_fifo_errors;   destSnap->tx_fifo_errors = srcSnap->tx_fifo_errors;
+  destSnap->rx_compressed  = srcSnap->rx_compressed;    destSnap->tx_compressed  = srcSnap->tx_compressed;
+
+  destSnap->rx_crc_errors    = srcSnap->rx_crc_errors;
+  destSnap->rx_frame_errors  = srcSnap->rx_frame_errors;
+  destSnap->rx_length_errors = srcSnap->rx_length_errors;
+  destSnap->rx_missed_errors = srcSnap->rx_missed_errors;
+  destSnap->rx_over_errors   = srcSnap->rx_over_errors;
+
+  destSnap->tx_carrier_errors   = srcSnap->tx_carrier_errors;
+  destSnap->tx_heartbeat_errors = srcSnap->tx_heartbeat_errors;
+  destSnap->tx_window_errors    = srcSnap->tx_window_errors;
+  destSnap->tx_aborted_errors   = srcSnap->tx_aborted_errors;
+
+  destSnap->collisions = srcSnap->collisions;
+  destSnap->multicast  = srcSnap->multicast;
+
+  destSnap->time = srcSnap->time;
 }
 
 //--------------------------------------------------------------//
@@ -185,13 +240,43 @@ void PrintSnapAll(WINDOW* targetWin, struct snap_all* snapToPrnt) {
 }
 
 //--------------------------------------------------------------//
+//  PrintRates                                                  //
+//                                                              //
+//  Prints tx and rx rates.                                     //
+//--------------------------------------------------------------//
+void PrintRates(WINDOW* targetWin,
+                unsigned int rx,   unsigned int rxp, 
+                unsigned int tx,   unsigned int txp, 
+                unsigned int time, unsigned int timep) {
+  float txRate, rxRate;
+  unsigned int deltaT;
+  char sBuffer[20];
+  
+  deltaT = time - timep;
+
+  rxRate  = rx - rxp;
+  rxRate /= deltaT;
+  rxRate /= 1024;
+
+  txRate  = tx - txp;
+  txRate /= deltaT;
+  txRate /= 1024;
+
+  sprintf(sBuffer, "%f", rxRate);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 9, 3,  "rx rate:        ");    standend();        wprintw(targetWin, sBuffer);
+
+  sprintf(sBuffer, "%f", txRate);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 9, 31, "tx rate:        ");    standend();        wprintw(targetWin, sBuffer);
+}
+
+//--------------------------------------------------------------//
 //  main                                                        //
 //--------------------------------------------------------------//
 int main (int argc, char* argv[]) {
   bool contLoop = true;         //True until we want to exit main loop.
   char inpCmd;                  //Store user input.
   struct snap_all snapAll;      //Main snapshot structure.
-  struct snap_min snapMin;      //Basic snapshot structure.
+  struct snap_all snapAllPrev;  //Snapshot of previous data.
 
   //Init ncurses.
   NCInit();
@@ -199,21 +284,31 @@ int main (int argc, char* argv[]) {
   //Draw windows etc.
   box(ROOT_WIN, ACS_VLINE, ACS_HLINE);
 
+  //Fill window with data before 1st refresh.
   snapAll = GetSnapAll();
   PrintSnapAll(ROOT_WIN, &snapAll);
 
   //Main loop for user interaction.
   while (contLoop) {
     refresh();
-    inpCmd = getch();
+/*    inpCmd = getch();
 
     switch (inpCmd) {
       case 'q':
         contLoop = false;
-      default:
+        break;
+      default:*/
+        FillSnapAll(&snapAll, &snapAllPrev);
+    sleep(3);
         snapAll = GetSnapAll();
+
         PrintSnapAll(ROOT_WIN, &snapAll);
-    }
+        PrintRates(ROOT_WIN,
+                   snapAll.rx_bytes, snapAllPrev.rx_bytes,
+                   snapAll.tx_bytes, snapAllPrev.tx_bytes,
+                   snapAll.time,     snapAllPrev.time);
+    //}
+
   }
 
   //End ncurses.

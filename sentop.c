@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 //Global Vars.
-char STATS_PATH[100] = "/sys/devices/pci0000:00/0000:00:1c.5/0000:04:00.0/net/eth0/statistics/"; //Interface statistics path.
+char STATS_PATH[100] = "/sys/class/net/eth0/statistics/"; //Interface statistics path.
 static WINDOW* ROOT_WIN; //Pointer to root window.
 
 //Structs.
@@ -31,6 +31,15 @@ struct snap_all {
   unsigned int tx_carrier_errors,  tx_heartbeat_errors,  tx_window_errors,  tx_aborted_errors;
 
   unsigned int collisions,         multicast;
+};
+
+//--------------------------------------------------------------//
+//  snap_min                                                    //
+//                                                              //
+//  Structure to hold a snapshot of basic statistics.           //
+//--------------------------------------------------------------//
+struct snap_min {
+  unsigned int rx_bytes,           tx_bytes;
 };
 
 //Functions.
@@ -120,6 +129,20 @@ struct snap_all GetSnapAll() {
   return retSnap;
 }
 
+//--------------------------------------------------------------//
+//  GetSnapMin                                                  //
+//                                                              //
+//  Fills a snap_all structure with data.                       //
+//--------------------------------------------------------------//
+struct snap_min GetSnapMin() {
+  struct snap_min retSnap;
+
+  //                   rx                                                    tx
+  retSnap.rx_bytes             = GetStat("rx_bytes");           retSnap.tx_bytes        = GetStat("tx_bytes");
+
+  return retSnap;
+}
+
 void PrintSnapAll(WINDOW* targetWin, struct snap_all* snapToPrnt) {
   char sBuffer[20];
   char sBuffer2[20];
@@ -127,17 +150,17 @@ void PrintSnapAll(WINDOW* targetWin, struct snap_all* snapToPrnt) {
   int x2 = 31;
 
   sprintf(sBuffer, "%u", snapToPrnt->rx_bytes);                                         sprintf(sBuffer2, "%u", snapToPrnt->tx_bytes);
-  mvwprintw(targetWin, 2, x1, "rx_bytes:       ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 2, x2, "tx_bytes:       ");        wprintw(targetWin, sBuffer2);
+  mvwprintw(targetWin, 2, x1, "rx_bytes:       ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 2, x2, "tx_bytes:       ");        wprintw(targetWin, sBuffer2);
   sprintf(sBuffer, "%u", snapToPrnt->rx_packets);                                       sprintf(sBuffer2, "%u", snapToPrnt->tx_packets);
-  mvwprintw(targetWin, 3, x1, "rx_packets:     ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 3, x2, "tx_packets:     ");        wprintw(targetWin, sBuffer2);
+  mvwprintw(targetWin, 3, x1, "rx_packets:     ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 3, x2, "tx_packets:     ");        wprintw(targetWin, sBuffer2);
   sprintf(sBuffer, "%u", snapToPrnt->rx_errors);                                        sprintf(sBuffer2, "%u", snapToPrnt->tx_errors);
-  mvwprintw(targetWin, 4, x1, "rx_errors:      ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 4, x2, "tx_errors:      ");        wprintw(targetWin, sBuffer2);
+  mvwprintw(targetWin, 4, x1, "rx_errors:      ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 4, x2, "tx_errors:      ");        wprintw(targetWin, sBuffer2);
   sprintf(sBuffer, "%u", snapToPrnt->rx_dropped);                                       sprintf(sBuffer2, "%u", snapToPrnt->tx_dropped);
-  mvwprintw(targetWin, 5, x1, "rx_dropped:     ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 5, x2, "tx_dropped:     ");        wprintw(targetWin, sBuffer2);
+  mvwprintw(targetWin, 5, x1, "rx_dropped:     ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 5, x2, "tx_dropped:     ");        wprintw(targetWin, sBuffer2);
   sprintf(sBuffer, "%u", snapToPrnt->rx_fifo_errors);                                   sprintf(sBuffer2, "%u", snapToPrnt->tx_fifo_errors);
-  mvwprintw(targetWin, 6, x1, "rx_fifo_errors: ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 6, x2, "tx_fifo_errors: ");        wprintw(targetWin, sBuffer2);
+  mvwprintw(targetWin, 6, x1, "rx_fifo_errors: ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 6, x2, "tx_fifo_errors: ");        wprintw(targetWin, sBuffer2);
   sprintf(sBuffer, "%u", snapToPrnt->rx_compressed);                                    sprintf(sBuffer2, "%u", snapToPrnt->tx_compressed);
-  mvwprintw(targetWin, 7, x1, "rx_compressed:  ");       wprintw(targetWin, sBuffer);    mvwprintw(targetWin, 7, x2, "tx_compressed:  ");        wprintw(targetWin, sBuffer2);
+  mvwprintw(targetWin, 7, x1, "rx_compressed:  ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 7, x2, "tx_compressed:  ");        wprintw(targetWin, sBuffer2);
 }
 
 //--------------------------------------------------------------//
@@ -147,6 +170,7 @@ int main (int argc, char* argv[]) {
   bool contLoop = true;         //True until we want to exit main loop.
   char inpCmd;                  //Store user input.
   struct snap_all snapAll;      //Main snapshot structure.
+  struct snap_min snapMin;      //Basic snapshot structure.
 
   //Init ncurses.
   NCInit();

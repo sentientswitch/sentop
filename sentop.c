@@ -43,10 +43,12 @@ struct snap_min {
 };
 
 //Functions.
+
 void NCInit();
 void NCExit();
 unsigned int GetStat(char* statsFile);
 struct snap_all GetSnapAll();
+struct snap_min GetSnapMin();
 
 //--------------------------------------------------------------//
 //  NCInit                                                      //
@@ -54,10 +56,18 @@ struct snap_all GetSnapAll();
 //  Functions for starting ncurses environment.                 //
 //--------------------------------------------------------------//
 void NCInit() {
+  //Init main window.
   ROOT_WIN = initscr();
+
+  //Various ncurses options.
   cbreak();
   noecho();
   keypad(stdscr, TRUE);
+
+  //Colours.
+  start_color();
+  init_pair(1, COLOR_GREEN,  COLOR_BLACK);
+  init_pair(2, COLOR_RED,    COLOR_BLACK);
 }
 
 //--------------------------------------------------------------//
@@ -143,24 +153,35 @@ struct snap_min GetSnapMin() {
   return retSnap;
 }
 
+//--------------------------------------------------------------//
+//  PrintSnapAll                                                //
+//                                                              //
+//  Prints a snap_all structure.                                //
+//--------------------------------------------------------------//
 void PrintSnapAll(WINDOW* targetWin, struct snap_all* snapToPrnt) {
   char sBuffer[20];
   char sBuffer2[20];
   int x1 = 3;
   int x2 = 31;
 
-  sprintf(sBuffer, "%u", snapToPrnt->rx_bytes);                                         sprintf(sBuffer2, "%u", snapToPrnt->tx_bytes);
-  mvwprintw(targetWin, 2, x1, "rx_bytes:       ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 2, x2, "tx_bytes:       ");        wprintw(targetWin, sBuffer2);
-  sprintf(sBuffer, "%u", snapToPrnt->rx_packets);                                       sprintf(sBuffer2, "%u", snapToPrnt->tx_packets);
-  mvwprintw(targetWin, 3, x1, "rx_packets:     ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 3, x2, "tx_packets:     ");        wprintw(targetWin, sBuffer2);
-  sprintf(sBuffer, "%u", snapToPrnt->rx_errors);                                        sprintf(sBuffer2, "%u", snapToPrnt->tx_errors);
-  mvwprintw(targetWin, 4, x1, "rx_errors:      ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 4, x2, "tx_errors:      ");        wprintw(targetWin, sBuffer2);
-  sprintf(sBuffer, "%u", snapToPrnt->rx_dropped);                                       sprintf(sBuffer2, "%u", snapToPrnt->tx_dropped);
-  mvwprintw(targetWin, 5, x1, "rx_dropped:     ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 5, x2, "tx_dropped:     ");        wprintw(targetWin, sBuffer2);
-  sprintf(sBuffer, "%u", snapToPrnt->rx_fifo_errors);                                   sprintf(sBuffer2, "%u", snapToPrnt->tx_fifo_errors);
-  mvwprintw(targetWin, 6, x1, "rx_fifo_errors: ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 6, x2, "tx_fifo_errors: ");        wprintw(targetWin, sBuffer2);
-  sprintf(sBuffer, "%u", snapToPrnt->rx_compressed);                                    sprintf(sBuffer2, "%u", snapToPrnt->tx_compressed);
-  mvwprintw(targetWin, 7, x1, "rx_compressed:  ");       wprintw(targetWin, sBuffer);   mvwprintw(targetWin, 7, x2, "tx_compressed:  ");        wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_bytes);                                      sprintf(sBuffer2, "%u", snapToPrnt->tx_bytes);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 2, x1, "rx_bytes:       ");     standend();       wprintw(targetWin, sBuffer);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 2, x2, "tx_bytes:       ");     standend();       wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_packets);                                    sprintf(sBuffer2, "%u", snapToPrnt->tx_packets);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 3, x1, "rx_packets:     ");     standend();       wprintw(targetWin, sBuffer);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 3, x2, "tx_packets:     ");     standend();       wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_errors);                                     sprintf(sBuffer2, "%u", snapToPrnt->tx_errors);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 4, x1, "rx_errors:      ");     standend();       wprintw(targetWin, sBuffer);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 4, x2, "tx_errors:      ");     standend();       wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_dropped);                                    sprintf(sBuffer2, "%u", snapToPrnt->tx_dropped);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 5, x1, "rx_dropped:     ");     standend();       wprintw(targetWin, sBuffer);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 5, x2, "tx_dropped:     ");     standend();       wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_fifo_errors);                                sprintf(sBuffer2, "%u", snapToPrnt->tx_fifo_errors);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 6, x1, "rx_fifo_errors: ");     standend();       wprintw(targetWin, sBuffer);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 6, x2, "tx_fifo_errors: ");     standend();       wprintw(targetWin, sBuffer2);
+  sprintf(sBuffer, "%u", snapToPrnt->rx_compressed);                                 sprintf(sBuffer2, "%u", snapToPrnt->tx_compressed);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 7, x1, "rx_compressed:  ");     standend();       wprintw(targetWin, sBuffer);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 7, x2, "tx_compressed:  ");     standend();       wprintw(targetWin, sBuffer2);
 }
 
 //--------------------------------------------------------------//
@@ -178,15 +199,20 @@ int main (int argc, char* argv[]) {
   //Draw windows etc.
   box(ROOT_WIN, ACS_VLINE, ACS_HLINE);
 
+  snapAll = GetSnapAll();
+  PrintSnapAll(ROOT_WIN, &snapAll);
+
   //Main loop for user interaction.
   while (contLoop) {
     refresh();
     inpCmd = getch();
-    if (inpCmd == 'q') {
-      contLoop = false;
-    } else {
-      snapAll = GetSnapAll();
-      PrintSnapAll(ROOT_WIN, &snapAll);
+
+    switch (inpCmd) {
+      case 'q':
+        contLoop = false;
+      default:
+        snapAll = GetSnapAll();
+        PrintSnapAll(ROOT_WIN, &snapAll);
     }
   }
 

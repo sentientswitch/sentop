@@ -13,6 +13,7 @@
 //Global Vars.
 char STATS_PATH[100] = "/sys/class/net/eth0/statistics/"; //Interface statistics path.
 static WINDOW* ROOT_WIN; //Pointer to root window.
+unsigned int TIME_DELAY = 3; //Time between data points.
 
 //Structs.
 
@@ -47,18 +48,22 @@ struct snap_min {
   time_t time;
 };
 
-/*
+
 //--------------------------------------------------------------//
 //  graph                                                       //
 //                                                              //
 //  Structure to store graph data and options.                  //
 //--------------------------------------------------------------//
-struct st_graph {
-  unsigned char samples = 30; //Number of samples to store.
-  char graphChar = '#'; //Character to draw graph with.
-  unsigned int maxVal = 0; //Keeps track of maximum value observed so far.
-  unsigned int vals[samples]; //Array of data points.
-};*/
+struct graph_data {
+  ////Graph Options.
+  //unsigned char samples; //Number of samples to store.
+  //char graphChar; //Character to draw graph with.
+
+  //Data.
+  unsigned int maxVal; //Keeps track of maximum value observed so far.
+  unsigned int vals[]; //Array of data points.
+};
+
 
 //Functions.
 
@@ -110,7 +115,7 @@ unsigned int GetStat(char statsFile[]) {
   char filePath[200];
   FILE *filePtr;
 
-  //Get full file path
+  //Get full file path.
   sprintf(filePath, "%s%s", STATS_PATH, statsFile);
 
   //Open, read, close.
@@ -244,14 +249,30 @@ void PrintSnapAll(WINDOW* targetWin, struct snap_all* snapToPrnt) {
 //                                                              //
 //  Prints tx and rx rates.                                     //
 //--------------------------------------------------------------//
-void PrintRates(WINDOW* targetWin,
-                unsigned int rx,   unsigned int rxp, 
-                unsigned int tx,   unsigned int txp, 
-                unsigned int time, unsigned int timep) {
-  float txRate, rxRate;
-  unsigned int deltaT;
+void PrintRates(WINDOW* targetWin, float rxRate, float txRate) {
   char sBuffer[20];
-  
+
+  sprintf(sBuffer, "%f", rxRate);
+  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 9, 3,  "rx rate:        ");    standend();        wprintw(targetWin, sBuffer);
+
+  sprintf(sBuffer, "%f", txRate);
+  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 9, 31, "tx rate:        ");    standend();        wprintw(targetWin, sBuffer);
+}
+
+//--------------------------------------------------------------//
+//  PrintGraph                                                  //
+//                                                              //
+//  Prints a graph of network activity.                         //
+//--------------------------------------------------------------//
+void PrintGraph(WINDOW* targetWin, struct graph_data graphData) {
+
+}
+
+//--------------------------------------------------------------//
+//  GetRates                                                    //
+//                                                              //
+//  Calculates the average rx and tx rates between two times.   //
+//---- 
   deltaT = time - timep;
 
   rxRate  = rx - rxp;
@@ -262,11 +283,22 @@ void PrintRates(WINDOW* targetWin,
   txRate /= deltaT;
   txRate /= 1024;
 
-  sprintf(sBuffer, "%f", rxRate);
-  attron(COLOR_PAIR(1));        mvwprintw(targetWin, 9, 3,  "rx rate:        ");    standend();        wprintw(targetWin, sBuffer);
+----------------------------------------------------------//
+void GetRates(unsigned int rx,   unsigned int rxp, 
+              unsigned int tx,   unsigned int txp, 
+              unsigned int time, unsigned int timep,
+              float* rxRate,     float* txRate) {
+  unsigned int deltaT;
 
-  sprintf(sBuffer, "%f", txRate);
-  attron(COLOR_PAIR(2));        mvwprintw(targetWin, 9, 31, "tx rate:        ");    standend();        wprintw(targetWin, sBuffer);
+  deltaT = time - timep;
+
+  *rxRate  = rx - rxp;
+  *rxRate /= deltaT;
+  *rxRate /= 1024;
+
+  *txRate  = tx - txp;
+  *txRate /= deltaT;
+  *txRate /= 1024;
 }
 
 //--------------------------------------------------------------//
@@ -274,9 +306,11 @@ void PrintRates(WINDOW* targetWin,
 //--------------------------------------------------------------//
 int main (int argc, char* argv[]) {
   bool contLoop = true;         //True until we want to exit main loop.
-  char inpCmd;                  //Store user input.
+  char inpCmd;                  //Store user input (keystroke).
   struct snap_all snapAll;      //Main snapshot structure.
   struct snap_all snapAllPrev;  //Snapshot of previous data.
+  struct graph_data graphData;  //Holds previous rx,tx rates for graphing purposes.
+  float rxRate, txRate;         //Holds last calculated rx and tx rates.
 
   //Init ncurses.
   NCInit();
@@ -291,15 +325,16 @@ int main (int argc, char* argv[]) {
   //Main loop for user interaction.
   while (contLoop) {
     refresh();
+
 /*    inpCmd = getch();
 
     switch (inpCmd) {
       case 'q':
         contLoop = false;
         break;
-      default:*/
+      default:*//*
         FillSnapAll(&snapAll, &snapAllPrev);
-    sleep(3);
+    sleep(TIME_DELAY);
         snapAll = GetSnapAll();
 
         PrintSnapAll(ROOT_WIN, &snapAll);
@@ -307,8 +342,19 @@ int main (int argc, char* argv[]) {
                    snapAll.rx_bytes, snapAllPrev.rx_bytes,
                    snapAll.tx_bytes, snapAllPrev.tx_bytes,
                    snapAll.time,     snapAllPrev.time);
-    //}
+    //}*/
 
+    FillSnapAll(&snapAll, &snapAllPrev); //Copy current data to snapAllPrev.
+    sleep(TIME_DELAY); //Wait before getting more data.
+    snapAll = GetSnapAll(); //Get data.
+
+    PrintSnapAll(ROOT_WIN, &snapAll); //Print the data to the main window.
+    GetRates(snapAll.rx_bytes, snapAllPrev.rx_bytes,
+             snapAll.tx_bytes, snapAllPrev.tx_bytes,
+             snapAll.time,     snapAllPrev.time,
+             &rxRate,          &txRate); //Calculate average rx & tx data rates for wait period. 
+    PrintRates(ROOT_WIN, rxRate, txRate);
+    //PrintGraph(ROOT_WIN, graphData);
   }
 
   //End ncurses.

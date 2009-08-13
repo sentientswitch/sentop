@@ -7,11 +7,12 @@
 
 #include <ncurses.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 
 //Global Vars.
-char STATS_PATH[100] = "/sys/class/net/eth0/statistics/"; //Interface statistics path.
+char STATS_PATH[100] = "/sys/class/net/ra0/statistics/"; //Interface statistics path.
 static WINDOW* ROOT_WIN; //Pointer to root window.
 unsigned int TIME_DELAY = 3; //Time between data points.
 
@@ -50,18 +51,18 @@ struct snap_min {
 
 
 //--------------------------------------------------------------//
-//  graph                                                       //
+//  graph_data                                                  //
 //                                                              //
 //  Structure to store graph data and options.                  //
 //--------------------------------------------------------------//
 struct graph_data {
   ////Graph Options.
-  //unsigned char samples; //Number of samples to store.
-  //char graphChar; //Character to draw graph with.
+  unsigned char numVals; //Number of samples stored.
+  wchar_t graphChar; //Character to draw graph with.
 
   //Data.
   unsigned int maxVal; //Keeps track of maximum value observed so far.
-  unsigned int vals[]; //Array of data points.
+  unsigned int* vals; //Array of data points.
 };
 
 
@@ -264,7 +265,9 @@ void PrintRates(WINDOW* targetWin, float rxRate, float txRate) {
 //                                                              //
 //  Prints a graph of network activity.                         //
 //--------------------------------------------------------------//
-void PrintGraph(WINDOW* targetWin, struct graph_data graphData) {
+void PrintGraph(WINDOW* targetWin, struct graph_data* graphData) {
+  wchar_t borderChar;
+  
 
 }
 
@@ -272,18 +275,7 @@ void PrintGraph(WINDOW* targetWin, struct graph_data graphData) {
 //  GetRates                                                    //
 //                                                              //
 //  Calculates the average rx and tx rates between two times.   //
-//---- 
-  deltaT = time - timep;
-
-  rxRate  = rx - rxp;
-  rxRate /= deltaT;
-  rxRate /= 1024;
-
-  txRate  = tx - txp;
-  txRate /= deltaT;
-  txRate /= 1024;
-
-----------------------------------------------------------//
+//--------------------------------------------------------------//
 void GetRates(unsigned int rx,   unsigned int rxp, 
               unsigned int tx,   unsigned int txp, 
               unsigned int time, unsigned int timep,
@@ -302,18 +294,48 @@ void GetRates(unsigned int rx,   unsigned int rxp,
 }
 
 //--------------------------------------------------------------//
+//  GraphDataInit                                               //
+//                                                              //
+//  Initialises a graph_data struct to a given size.            //
+//--------------------------------------------------------------//
+void GraphDataInit(struct graph_data* graphData, unsigned int numDataPts) {
+  graphData->vals = malloc(sizeof(float)*numDataPts);
+  graphData->numVals = numDataPts;
+  graphData->graphChar = '▒';  // \u2592
+}
+
+//--------------------------------------------------------------//
+//  PushDataPoint                                               //
+//                                                              //
+//  Adds a new data point into a graph_data struct.             //
+//--------------------------------------------------------------//
+void PushDataPoint(struct graph_data* graphData, float dataPt) {
+  int i;
+
+  graphData->vals[(graphData->numVals) - 1 ] = dataPt; //Record new data point.
+
+  //Shift old data by one place.
+  for (i = 0; i < graphData->numVals; i++) {
+    graphData->vals[i] = graphData->vals[i + 1];
+  }
+}
+
+//--------------------------------------------------------------//
 //  main                                                        //
 //--------------------------------------------------------------//
 int main (int argc, char* argv[]) {
-  bool contLoop = true;         //True until we want to exit main loop.
-  char inpCmd;                  //Store user input (keystroke).
-  struct snap_all snapAll;      //Main snapshot structure.
-  struct snap_all snapAllPrev;  //Snapshot of previous data.
-  struct graph_data graphData;  //Holds previous rx,tx rates for graphing purposes.
-  float rxRate, txRate;         //Holds last calculated rx and tx rates.
+  bool contLoop = true;           //True until we want to exit main loop.
+  //char inpCmd;                  //Store user input (keystroke).
+  struct snap_all snapAll;        //Main snapshot structure.
+  struct snap_all snapAllPrev;    //Snapshot of previous data.
+  struct graph_data rxGraphData;  //Holds previous rx rates for graphing purposes.
+  struct graph_data txGraphData;  //Holds previous tx rates for graphing purposes.
+  float rxRate, txRate;           //Holds last calculated rx and tx rates.
 
   //Init ncurses.
   NCInit();
+  GraphDataInit(&rxGraphData, 20);
+  GraphDataInit(&txGraphData, 20);
 
   //Draw windows etc.
   box(ROOT_WIN, ACS_VLINE, ACS_HLINE);
@@ -347,18 +369,25 @@ int main (int argc, char* argv[]) {
     FillSnapAll(&snapAll, &snapAllPrev); //Copy current data to snapAllPrev.
     sleep(TIME_DELAY); //Wait before getting more data.
     snapAll = GetSnapAll(); //Get data.
-
     PrintSnapAll(ROOT_WIN, &snapAll); //Print the data to the main window.
+    
     GetRates(snapAll.rx_bytes, snapAllPrev.rx_bytes,
              snapAll.tx_bytes, snapAllPrev.tx_bytes,
              snapAll.time,     snapAllPrev.time,
              &rxRate,          &txRate); //Calculate average rx & tx data rates for wait period. 
+    PushDataPoint(&rxGraphData, rxRate);
+    PushDataPoint(&txGraphData, txRate);
+     
     PrintRates(ROOT_WIN, rxRate, txRate);
-    //PrintGraph(ROOT_WIN, graphData);
+    PrintGraph(ROOT_WIN, &rxGraphData);
+    PrintGraph(ROOT_WIN, &txGraphData);
   }
 
   //End ncurses.
   NCExit();
+
+  free(rxGraphData.vals);
+  free(txGraphData.vals);
 
   return 0;
 }

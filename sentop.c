@@ -14,7 +14,7 @@
 //Global Vars.
 char STATS_PATH[100] = "/sys/class/net/ra0/statistics/"; //Interface statistics path.
 static WINDOW* ROOT_WIN; //Pointer to root window.
-unsigned int TIME_DELAY = 3; //Time between data points.
+unsigned int TIME_DELAY = 1; //Time between data points.
 
 //Structs.
 
@@ -58,7 +58,7 @@ struct snap_min {
 struct graph_data {
   ////Graph Options.
   unsigned char numVals; //Number of samples stored.
-  wchar_t graphChar; //Character to draw graph with.
+  char graphChar; //Character to draw graph with.
 
   //Data.
   unsigned int maxVal; //Keeps track of maximum value observed so far.
@@ -73,6 +73,7 @@ void NCExit();
 unsigned int GetStat(char* statsFile);
 struct snap_all GetSnapAll();
 struct snap_min GetSnapMin();
+char GetGraphChar(float val, unsigned int vertPos, unsigned int vertHeight, float maxVal);
 
 //--------------------------------------------------------------//
 //  NCInit                                                      //
@@ -265,10 +266,65 @@ void PrintRates(WINDOW* targetWin, float rxRate, float txRate) {
 //                                                              //
 //  Prints a graph of network activity.                         //
 //--------------------------------------------------------------//
-void PrintGraph(WINDOW* targetWin, struct graph_data* graphData) {
-  wchar_t borderChar;
-  
+void PrintGraph(WINDOW* targetWin, struct graph_data* graphData, unsigned int vertHeight) {
+//  /*
+  wchar_t topLeft, btmLeft;
+  wchar_t topRight, btmRight;
+  wchar_t horz, vert;
+//  */
+  char graphChar;
 
+  int i, j;
+
+  /*
+  topLeft  = '┌';
+  btmLeft  = '└';
+
+  topRight = '┐';
+  btmRight = '┘';
+
+  vert     = '│';
+  horz     = '─';
+  */
+
+  //mvwprintw(targetWin, 11, 3, "┌────────────────────┐");
+  mvwprintw(targetWin, 11, 3, "/----------------------------------------\\");
+  for (j = 0; j < vertHeight; j++) {
+    mvwprintw(targetWin, 12 + j, 3, "|");
+    mvwprintw(targetWin, 12 + j, 44, "|");
+    for (i = 0; i < (graphData->numVals); i++) {
+      graphChar = GetGraphChar(graphData->vals[i], j, vertHeight, graphData->maxVal);
+      attron(COLOR_PAIR(1));
+      mvwprintw(targetWin, (12 + vertHeight) - j, 4 + i, &graphChar);
+      standend();
+    }
+  }
+  //mvwprintw(targetWin, 11, 3, "└────────────────────┘");
+  mvwprintw(targetWin, 12 + vertHeight, 3, "\\________________________________________/");
+}
+
+char GetGraphChar(float val, unsigned int vertPos, unsigned int vertHeight, float maxVal) {
+  char result;// = '█'; //Char to return (and draw).
+  float tick; //KiB/s per char.
+  float barHeight; //Bar height to draw (units of characters).
+
+  tick = ((float)vertHeight) / maxVal;
+  barHeight = val / tick;
+/*
+  if (barHeight < vertPos) {
+    result = ' ';
+  } else if ((int)barHeight < vertPos) {
+    result = '█';
+  }*/
+
+  if ((vertPos - barHeight) > 0) {
+    //result = '█';
+    result = ' ';
+  } else {
+    result = '#';
+  } 
+
+  return result;
 }
 
 //--------------------------------------------------------------//
@@ -301,7 +357,8 @@ void GetRates(unsigned int rx,   unsigned int rxp,
 void GraphDataInit(struct graph_data* graphData, unsigned int numDataPts) {
   graphData->vals = malloc(sizeof(float)*numDataPts);
   graphData->numVals = numDataPts;
-  graphData->graphChar = '▒';  // \u2592
+  graphData->graphChar = '#';//'█';  // \u2592 shaded \u2588 filled
+  graphData->maxVal = 0;
 }
 
 //--------------------------------------------------------------//
@@ -318,6 +375,10 @@ void PushDataPoint(struct graph_data* graphData, float dataPt) {
   for (i = 0; i < graphData->numVals; i++) {
     graphData->vals[i] = graphData->vals[i + 1];
   }
+
+  if (graphData->maxVal < dataPt) {
+    graphData->maxVal = dataPt;
+  }
 }
 
 //--------------------------------------------------------------//
@@ -331,11 +392,12 @@ int main (int argc, char* argv[]) {
   struct graph_data rxGraphData;  //Holds previous rx rates for graphing purposes.
   struct graph_data txGraphData;  //Holds previous tx rates for graphing purposes.
   float rxRate, txRate;           //Holds last calculated rx and tx rates.
+  char sBuffer[20];               //For printing some strings.
 
   //Init ncurses.
   NCInit();
-  GraphDataInit(&rxGraphData, 20);
-  GraphDataInit(&txGraphData, 20);
+  GraphDataInit(&rxGraphData, 40);
+  GraphDataInit(&txGraphData, 40);
 
   //Draw windows etc.
   box(ROOT_WIN, ACS_VLINE, ACS_HLINE);
@@ -375,17 +437,23 @@ int main (int argc, char* argv[]) {
              snapAll.tx_bytes, snapAllPrev.tx_bytes,
              snapAll.time,     snapAllPrev.time,
              &rxRate,          &txRate); //Calculate average rx & tx data rates for wait period. 
-    PushDataPoint(&rxGraphData, rxRate);
+    PushDataPoint(&rxGraphData, rxRate); //Push newly calculated rates into graph_data structs.
     PushDataPoint(&txGraphData, txRate);
      
     PrintRates(ROOT_WIN, rxRate, txRate);
-    PrintGraph(ROOT_WIN, &rxGraphData);
-    PrintGraph(ROOT_WIN, &txGraphData);
+    PrintGraph(ROOT_WIN, &rxGraphData, 10);
+    //PrintGraph(ROOT_WIN, &txGraphData, 10);
+
+    sprintf(sBuffer, "%s%d%s", "max rx rate: ", rxGraphData.maxVal, " KiB/s");
+    mvwprintw(ROOT_WIN, 11, 47, sBuffer);
+    sprintf(sBuffer, "%s%d%s", "max tx rate: ", txGraphData.maxVal, " KiB/s");
+    mvwprintw(ROOT_WIN, 12, 47, sBuffer);
   }
 
   //End ncurses.
   NCExit();
 
+  //Free allocated memory.
   free(rxGraphData.vals);
   free(txGraphData.vals);
 

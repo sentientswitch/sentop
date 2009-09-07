@@ -1,2 +1,2 @@
 all:
-	gcc -Wall -lncurses -o sentop sentop.c
+	gcc -Wall -lncurses -O2 -o sentop sentop.c

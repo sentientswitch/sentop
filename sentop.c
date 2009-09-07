@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 //Global Vars.
-char STATS_PATH[100] = "/sys/class/net/ra0/statistics/"; //Interface statistics path.
+char STATS_PATH[100]; //Interface statistics path. e.g. "/sys/class/net/eth0/statistics/"
 char INTERFACE[5] = "";
 static WINDOW* ROOT_WIN; //Pointer to root window.
 unsigned int TIME_DELAY = 1; //Time between data points.
@@ -106,14 +106,32 @@ void NCExit() {
 }
 
 //--------------------------------------------------------------//
-//  GetPath                                                     //
+//  SetPath                                                     //
 //                                                              //
-//                                                              //
+//  Returns true if interface given exists.                     //
 //                                                              //
 //                                                              //
 //--------------------------------------------------------------//
-void SetPath(char interface[]) {
+bool SetPath(char interface[]) {
+  char filePath[200];
+  FILE* filePtr;
+  bool retVal;
+
+  //Set statistics path using given interface.
   sprintf(STATS_PATH, "/sys/class/net/%s/statistics/", interface);
+
+  //We will check if this file in the statistics dir exists.
+  sprintf(filePath, "%srx_bytes", STATS_PATH);
+
+  //If we can't open the file, assume no such interface exists.
+  if ( (filePtr = fopen(filePath, "r")) ) {
+    fclose(filePtr);
+    retVal = true; 
+  } else {
+    retVal = false;
+  }
+
+  return retVal;
 }
 
 
@@ -398,17 +416,36 @@ int main (int argc, char* argv[]) {
   float rxRate, txRate;           //Holds last calculated rx and tx rates.
   char sBuffer[20];               //For printing some strings.
   int opt;
+  bool pathSet = false;           //Set to true if interface path set successfully.
 
-  /*while (opt = getopt(argc, argv, "i::") != -1) {
+  //Parse command line args using getopt.
+  while ( (opt = getopt(argc, argv, "i:t:")) != -1) {
      switch (opt) {
+
        case 'i':
-         //
-         SetPath(optarg);
+         pathSet = SetPath(optarg);
+         if (!pathSet) {
+           printf("Interface \"%s\" does not appear to exist.\n", optarg);
+           exit(0);
+         }
          break;
+       case 't':
+         TIME_DELAY = atoi(optarg);
+         break;
+
        default:
-         break;
+
+       case '?':
+         printf("Usage:\n  %s -i INTERFACE [-t UPDATE INTERVAL IN SECONDS]\n", argv[0]);
+         exit(0);
      }
-  }*/
+  }
+
+  //Check that an interface was specified.
+  if (!pathSet) {
+    printf("Usage:\n  %s -i INTERFACE [-t UPDATE INTERVAL IN SECONDS]\n", argv[0]);
+    exit(0);
+  }
 
   //Init ncurses.
   NCInit();

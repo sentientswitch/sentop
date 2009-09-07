@@ -4,7 +4,6 @@
 //      contact: sentientswitch@gmail.com                       //
 //--------------------------------------------------------------//
 
-
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +12,7 @@
 
 //Global Vars.
 char STATS_PATH[100] = "/sys/class/net/ra0/statistics/"; //Interface statistics path.
+char INTERFACE[5] = "";
 static WINDOW* ROOT_WIN; //Pointer to root window.
 unsigned int TIME_DELAY = 1; //Time between data points.
 
@@ -104,6 +104,18 @@ void NCInit() {
 void NCExit() {
   endwin();
 }
+
+//--------------------------------------------------------------//
+//  GetPath                                                     //
+//                                                              //
+//                                                              //
+//                                                              //
+//                                                              //
+//--------------------------------------------------------------//
+void SetPath(char interface[]) {
+  sprintf(STATS_PATH, "/sys/class/net/%s/statistics/", interface);
+}
+
 
 //--------------------------------------------------------------//
 //  GetStat                                                     //
@@ -267,40 +279,39 @@ void PrintRates(WINDOW* targetWin, float rxRate, float txRate) {
 //  Prints a graph of network activity.                         //
 //--------------------------------------------------------------//
 void PrintGraph(WINDOW* targetWin, struct graph_data* graphData, unsigned int vertHeight) {
-//  /*
-  wchar_t topLeft, btmLeft;
-  wchar_t topRight, btmRight;
-  wchar_t horz, vert;
-//  */
   char graphChar;
-
   int i, j;
 
-  /*
-  topLeft  = '┌';
-  btmLeft  = '└';
 
-  topRight = '┐';
-  btmRight = '┘';
+  //Draw graph border.
 
-  vert     = '│';
-  horz     = '─';
-  */
+  //Top Line.
+  mvwaddch(targetWin, 11, 3, ACS_ULCORNER);
+  mvwhline(targetWin, 11, 4, ACS_HLINE, 40);
+  mvwaddch(targetWin, 11, 44, ACS_URCORNER);
 
-  //mvwprintw(targetWin, 11, 3, "┌────────────────────┐");
-  mvwprintw(targetWin, 11, 3, "/----------------------------------------\\");
+  //Left Side.
+  mvwvline(targetWin, 12,  3, ACS_VLINE, vertHeight);
+
+  //Right Side.
+  mvwvline(targetWin, 12, 44, ACS_VLINE, vertHeight);
+
+  //Bottom Line.
+  mvwaddch(targetWin, 12 + vertHeight, 3, ACS_LLCORNER);
+  mvwhline(targetWin, 12 + vertHeight, 4, ACS_HLINE, 40);
+  mvwaddch(targetWin, 12 + vertHeight, 44, ACS_LRCORNER);
+
+
+  //Evaluate all graph cells (Print a block?).
   for (j = 0; j < vertHeight; j++) {
-    mvwprintw(targetWin, 12 + j, 3, "|");
-    mvwprintw(targetWin, 12 + j, 44, "|");
     for (i = 0; i < (graphData->numVals); i++) {
       graphChar = GetGraphChar(graphData->vals[i], j, vertHeight, graphData->maxVal);
       attron(COLOR_PAIR(1));
-      mvwprintw(targetWin, (12 + vertHeight) - j, 4 + i, &graphChar);
+      mvwaddch(targetWin, (11 + vertHeight) - j, 4 + i, NCURSES_ACS(graphChar));
       standend();
     }
   }
-  //mvwprintw(targetWin, 11, 3, "└────────────────────┘");
-  mvwprintw(targetWin, 12 + vertHeight, 3, "\\________________________________________/");
+
 }
 
 char GetGraphChar(float val, unsigned int vertPos, unsigned int vertHeight, float maxVal) {
@@ -310,18 +321,11 @@ char GetGraphChar(float val, unsigned int vertPos, unsigned int vertHeight, floa
 
   tick = ((float)vertHeight) / maxVal;
   barHeight = val / tick;
-/*
-  if (barHeight < vertPos) {
-    result = ' ';
-  } else if ((int)barHeight < vertPos) {
-    result = '█';
-  }*/
 
   if ((vertPos - barHeight) > 0) {
-    //result = '█';
     result = ' ';
   } else {
-    result = '#';
+    result = ACS_BLOCK;
   } 
 
   return result;
@@ -393,6 +397,18 @@ int main (int argc, char* argv[]) {
   struct graph_data txGraphData;  //Holds previous tx rates for graphing purposes.
   float rxRate, txRate;           //Holds last calculated rx and tx rates.
   char sBuffer[20];               //For printing some strings.
+  int opt;
+
+  /*while (opt = getopt(argc, argv, "i::") != -1) {
+     switch (opt) {
+       case 'i':
+         //
+         SetPath(optarg);
+         break;
+       default:
+         break;
+     }
+  }*/
 
   //Init ncurses.
   NCInit();
